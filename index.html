@@ -206,7 +206,7 @@
                 <!-- Area Import (Awalnya Tersembunyi) -->
                 <div id="import-area" style="display:none; margin-bottom:15px; background: #e0f2fe; padding: 10px; border-radius: 6px; border: 1px solid #7dd3fc;">
                     <label style="font-size: 12px; color: #0369a1; font-weight:bold; margin-bottom:5px; display:block;">Pilih file CSV (Format: Nama,Harga):</label>
-                    <input type="file" id="import-file" accept=".csv" style="width:100%; padding:10px; background:white; font-size:14px; border:1px solid #93c5fd; border-radius:6px; outline:none; margin-bottom:10px;" />
+                    <input type="file" id="import-file" accept=".csv, text/csv, application/vnd.ms-excel, application/csv, text/plain" style="width:100%; padding:10px; background:white; font-size:14px; border:1px solid #93c5fd; border-radius:6px; outline:none; margin-bottom:10px;" />
                     <button onclick="processImportFile()" style="width:100%; background:#0284c7; color:white; padding:10px; font-size:14px; font-weight:bold; border-radius:6px;">Mulai Import File</button>
                 </div>
 
@@ -710,6 +710,13 @@
             }
 
             let file = fileInput.files[0];
+            
+            // Pengaman tambahan: Pastikan nama file berakhiran .csv
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                await showAlert("Format tidak didukung! Harap pastikan file yang dipilih adalah file CSV.");
+                return;
+            }
+
             let reader = new FileReader();
 
             reader.onload = async function(e) {
