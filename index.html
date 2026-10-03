@@ -450,16 +450,36 @@
             });
         }
 
+        // FUNGSI DETEKSI PERANGKAT (HP/TABLET vs DESKTOP)
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        }
+
         async function attemptFullScreen() { 
             if(!document.fullscreenElement && document.documentElement.requestFullscreen){ 
                 try { await document.documentElement.requestFullscreen(); } catch(e) {}
             } 
         }
-        document.body.addEventListener('click', attemptFullScreen); 
-        document.body.addEventListener('touchstart', attemptFullScreen);
+
+        // AUTO FULL-SCREEN HANYA UNTUK MOBILE (Dibatasi oleh pengecekan isMobileDevice)
+        document.body.addEventListener('click', (e) => {
+            // Abaikan jika klik terjadi di dalam modal/dialog
+            if(e.target.closest('.modal-content')) return; 
+            
+            if(isMobileDevice()) {
+                attemptFullScreen();
+            }
+        }); 
+        
+        document.body.addEventListener('touchstart', (e) => {
+            if(e.target.closest('.modal-content')) return;
+            if(isMobileDevice()) {
+                attemptFullScreen();
+            }
+        }, {passive: true});
 
         async function toggleOrientation() {
-            await attemptFullScreen();
+            await attemptFullScreen(); // Izinkan paksa fullscreen jika tombol "Putar" ditekan manual
             const type = screen.orientation.type;
             try {
                 if (type.startsWith('portrait')) await screen.orientation.lock('landscape');
