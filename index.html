@@ -205,9 +205,9 @@
                 
                 <!-- Area Import (Awalnya Tersembunyi) -->
                 <div id="import-area" style="display:none; margin-bottom:15px; background: #e0f2fe; padding: 10px; border-radius: 6px; border: 1px solid #7dd3fc;">
-                    <label style="font-size: 12px; color: #0369a1; font-weight:bold; margin-bottom:5px; display:block;">Paste data dari Excel (Format: Nama,Harga):</label>
-                    <textarea id="import-text" placeholder="Contoh:&#10;Minyak Goreng 2L,32000&#10;Gula Pasir,17000" style="width:100%; height:100px; padding:10px; font-size:14px; border:1px solid #93c5fd; border-radius:6px; outline:none; resize:vertical;"></textarea>
-                    <button onclick="processImport()" style="width:100%; background:#0284c7; color:white; padding:10px; font-size:14px; font-weight:bold; border-radius:6px; margin-top:5px;">Mulai Import</button>
+                    <label style="font-size: 12px; color: #0369a1; font-weight:bold; margin-bottom:5px; display:block;">Pilih file CSV (Format: Nama,Harga):</label>
+                    <input type="file" id="import-file" accept=".csv" style="width:100%; padding:10px; background:white; font-size:14px; border:1px solid #93c5fd; border-radius:6px; outline:none; margin-bottom:10px;" />
+                    <button onclick="processImportFile()" style="width:100%; background:#0284c7; color:white; padding:10px; font-size:14px; font-weight:bold; border-radius:6px;">Mulai Import File</button>
                 </div>
 
                 <!-- Daftar Barang untuk Diedit/Dihapus -->
@@ -702,62 +702,75 @@
             area.style.display = (area.style.display === 'none') ? 'block' : 'none';
         }
 
-        async function processImport() {
-            let text = document.getElementById('import-text').value.trim();
-            if (!text) { await showAlert("Kolom teks import masih kosong!"); return; }
-            
-            let lines = text.split('\n');
-            let newItems = [];
-            let errors = 0;
+        async function processImportFile() {
+            let fileInput = document.getElementById('import-file');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                await showAlert("Silakan pilih file CSV terlebih dahulu!");
+                return;
+            }
 
-            for (let line of lines) {
-                // Abaikan baris header jika pengguna meng-copy dari Excel yang ada header-nya
-                if(line.toLowerCase().includes('nama barang') || line.trim() === '') continue;
+            let file = fileInput.files[0];
+            let reader = new FileReader();
 
-                // Pisahkan berdasarkan koma (,) atau tab (\t) dari Excel
-                let parts = line.includes('\t') ? line.split('\t') : line.split(','); 
+            reader.onload = async function(e) {
+                let text = e.target.result.trim();
+                if (!text) { await showAlert("File CSV kosong!"); return; }
                 
-                if (parts.length >= 2) {
-                    // Ambil harga dari bagian terakhir, buang sisa karakter selain angka
-                    let rawPrice = parts.pop().replace(/[^0-9]/g, ''); 
-                    let price = parseInt(rawPrice);
+                let lines = text.split('\n');
+                let newItems = [];
+                let errors = 0;
+
+                for (let line of lines) {
+                    // Abaikan baris header 
+                    if(line.toLowerCase().includes('nama barang') || line.trim() === '') continue;
+
+                    // Pisahkan berdasarkan koma (,) atau tab (\t)
+                    let parts = line.includes('\t') ? line.split('\t') : line.split(','); 
                     
-                    // Sisanya adalah nama (jika nama mengandung koma, gabungkan kembali)
-                    let name = parts.join(',').replace(/"/g, '').trim(); 
-                    
-                    if (name && !isNaN(price)) {
-                        newItems.push({ nama: name, harga: price });
+                    if (parts.length >= 2) {
+                        // Ambil harga dari bagian terakhir, buang sisa karakter selain angka
+                        let rawPrice = parts.pop().replace(/[^0-9]/g, ''); 
+                        let price = parseInt(rawPrice);
+                        
+                        // Sisanya adalah nama (jika nama mengandung koma, gabungkan kembali)
+                        let name = parts.join(',').replace(/"/g, '').trim(); 
+                        
+                        if (name && !isNaN(price)) {
+                            newItems.push({ nama: name, harga: price });
+                        } else {
+                            errors++;
+                        }
                     } else {
                         errors++;
                     }
-                } else {
-                    errors++;
                 }
-            }
 
-            if (newItems.length > 0) {
-                let db = getDb();
-                let mergedDb = [...newItems, ...db]; // Gabungkan data baru di atas data lama
-                
-                // Hapus duplikat (jika nama barang sama, gunakan harga terbaru dari data import)
-                let uniqueDb = [];
-                let seen = new Set();
-                for(let item of mergedDb) {
-                    let lowerName = item.nama.toLowerCase();
-                    if(!seen.has(lowerName)) {
-                        seen.add(lowerName);
-                        uniqueDb.push(item);
+                if (newItems.length > 0) {
+                    let db = getDb();
+                    let mergedDb = [...newItems, ...db]; // Gabungkan data baru di atas data lama
+                    
+                    // Hapus duplikat (jika nama barang sama, gunakan harga terbaru dari data import)
+                    let uniqueDb = [];
+                    let seen = new Set();
+                    for(let item of mergedDb) {
+                        let lowerName = item.nama.toLowerCase();
+                        if(!seen.has(lowerName)) {
+                            seen.add(lowerName);
+                            uniqueDb.push(item);
+                        }
                     }
-                }
 
-                saveDb(uniqueDb);
-                document.getElementById('import-text').value = '';
-                showImportArea(); // Sembunyikan kembali
-                renderManageList();
-                await showAlert(`Berhasil mengimpor ${newItems.length} barang!\n(${errors} baris dilewati karena format salah).`);
-            } else {
-                await showAlert("Format salah! Gunakan format:\nNama Barang,Harga\n\nContoh:\nIndomie,3000");
-            }
+                    saveDb(uniqueDb);
+                    fileInput.value = ''; // Kosongkan file explorer
+                    showImportArea(); // Sembunyikan area import
+                    renderManageList();
+                    await showAlert(`Berhasil mengimpor ${newItems.length} barang!\n(${errors} baris dilewati karena format salah).`);
+                } else {
+                    await showAlert("Format salah! Pastikan file CSV menggunakan format:\nNama Barang,Harga");
+                }
+            };
+            
+            reader.readAsText(file);
         }
 
         // ==========================================
