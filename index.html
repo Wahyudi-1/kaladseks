@@ -197,6 +197,19 @@
                     </div>
                 </div>
 
+                <!-- Tombol Backup dan Import Massal -->
+                <div style="display:flex; gap:10px; margin-bottom: 10px;">
+                    <button onclick="exportDatabase()" style="flex:1; background:#475569; color:white; padding:8px; border-radius:4px; font-size:13px; font-weight:bold;">💾 Backup (CSV)</button>
+                    <button onclick="showImportArea()" style="flex:1; background:#0284c7; color:white; padding:8px; border-radius:4px; font-size:13px; font-weight:bold;">📥 Import Masal</button>
+                </div>
+                
+                <!-- Area Import (Awalnya Tersembunyi) -->
+                <div id="import-area" style="display:none; margin-bottom:15px; background: #e0f2fe; padding: 10px; border-radius: 6px; border: 1px solid #7dd3fc;">
+                    <label style="font-size: 12px; color: #0369a1; font-weight:bold; margin-bottom:5px; display:block;">Paste data dari Excel (Format: Nama,Harga):</label>
+                    <textarea id="import-text" placeholder="Contoh:&#10;Minyak Goreng 2L,32000&#10;Gula Pasir,17000" style="width:100%; height:100px; padding:10px; font-size:14px; border:1px solid #93c5fd; border-radius:6px; outline:none; resize:vertical;"></textarea>
+                    <button onclick="processImport()" style="width:100%; background:#0284c7; color:white; padding:10px; font-size:14px; font-weight:bold; border-radius:6px; margin-top:5px;">Mulai Import</button>
+                </div>
+
                 <!-- Daftar Barang untuk Diedit/Dihapus -->
                 <input type="text" id="manage-search" placeholder="Cari barang untuk diubah..." onkeyup="filterManageList()" style="width:100%; padding:10px; font-size:14px; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:10px; outline:none; background:#f1f5f9;" />
                 <div id="manage-list" style="display:flex; flex-direction:column; gap:8px; overflow-y:auto; flex:1;">
@@ -665,6 +678,85 @@
                 saveDb(db);
                 resetManageForm();
                 renderManageList(document.getElementById('manage-search').value);
+            }
+        }
+
+        // ==========================================
+        // FITUR BACKUP & IMPORT MASSAL
+        // ==========================================
+        function exportDatabase() {
+            let db = getDb();
+            let text = "Nama Barang,Harga\n"; // Header CSV
+            text += db.map(item => `"${item.nama}",${item.harga}`).join('\n');
+            
+            let blob = new Blob([text], { type: 'text/csv' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = `Backup_Database_ADS_${new Date().toLocaleDateString('id-ID').replace(/\//g,'-')}.csv`;
+            a.click();
+        }
+
+        function showImportArea() {
+            let area = document.getElementById('import-area');
+            area.style.display = (area.style.display === 'none') ? 'block' : 'none';
+        }
+
+        async function processImport() {
+            let text = document.getElementById('import-text').value.trim();
+            if (!text) { await showAlert("Kolom teks import masih kosong!"); return; }
+            
+            let lines = text.split('\n');
+            let newItems = [];
+            let errors = 0;
+
+            for (let line of lines) {
+                // Abaikan baris header jika pengguna meng-copy dari Excel yang ada header-nya
+                if(line.toLowerCase().includes('nama barang') || line.trim() === '') continue;
+
+                // Pisahkan berdasarkan koma (,) atau tab (\t) dari Excel
+                let parts = line.includes('\t') ? line.split('\t') : line.split(','); 
+                
+                if (parts.length >= 2) {
+                    // Ambil harga dari bagian terakhir, buang sisa karakter selain angka
+                    let rawPrice = parts.pop().replace(/[^0-9]/g, ''); 
+                    let price = parseInt(rawPrice);
+                    
+                    // Sisanya adalah nama (jika nama mengandung koma, gabungkan kembali)
+                    let name = parts.join(',').replace(/"/g, '').trim(); 
+                    
+                    if (name && !isNaN(price)) {
+                        newItems.push({ nama: name, harga: price });
+                    } else {
+                        errors++;
+                    }
+                } else {
+                    errors++;
+                }
+            }
+
+            if (newItems.length > 0) {
+                let db = getDb();
+                let mergedDb = [...newItems, ...db]; // Gabungkan data baru di atas data lama
+                
+                // Hapus duplikat (jika nama barang sama, gunakan harga terbaru dari data import)
+                let uniqueDb = [];
+                let seen = new Set();
+                for(let item of mergedDb) {
+                    let lowerName = item.nama.toLowerCase();
+                    if(!seen.has(lowerName)) {
+                        seen.add(lowerName);
+                        uniqueDb.push(item);
+                    }
+                }
+
+                saveDb(uniqueDb);
+                document.getElementById('import-text').value = '';
+                showImportArea(); // Sembunyikan kembali
+                renderManageList();
+                await showAlert(`Berhasil mengimpor ${newItems.length} barang!\n(${errors} baris dilewati karena format salah).`);
+            } else {
+                await showAlert("Format salah! Gunakan format:\nNama Barang,Harga\n\nContoh:\nIndomie,3000");
             }
         }
 
