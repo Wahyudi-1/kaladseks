@@ -243,6 +243,12 @@
                 <span>📜 Riwayat Transaksi</span>
                 <button class="modal-close" onclick="closeHistory()">&times;</button>
             </div>
+            <!-- TAMBAHAN TOMBOL DOWNLOAD -->
+            <div style="padding: 10px 15px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 14px; font-weight: bold; color: #334155;">Export Laporan Laba/Rugi:</span>
+                <button onclick="exportHistoryCSV()" style="background: #059669; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px; height: auto; width: auto; box-shadow: 0 2px 0 #047857;">📥 Download CSV</button>
+            </div>
+            <!-- END TAMBAHAN -->
             <div class="modal-body" id="history-list"></div>
         </div>
     </div>
@@ -1045,7 +1051,8 @@
                 timeStr: new Date().toLocaleTimeString('id-ID'), 
                 total: total, pay: pay, change: change, expression: expr, txNumber: txNum
             });
-            if(history.length > 50) history.pop();
+            // PERBAIKAN: Naikkan kapasitas batas riwayat transaksi dari 50 ke 2000 agar muat 1 bulan
+            if(history.length > 2000) history.pop();
             localStorage.setItem('tx_history', JSON.stringify(history));
         }
 
@@ -1076,6 +1083,75 @@
         }
 
         function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
+
+        // ==========================================
+        // FITUR EXPORT / DOWNLOAD RIWAYAT (CSV)
+        // ==========================================
+        function parseExpressionToReadable(expr) {
+            if(!expr) return "-";
+            let parts = expr.split(/([+\-])/);
+            let items = [];
+            for (let i = 0; i < parts.length; i++) {
+                let p = parts[i].trim();
+                if (p === '+' || p === '-' || p === '') continue;
+                
+                let mathOnly = getMathString(p);
+                let matchName = p.match(/@([^@]*)@/);
+                let itemName = matchName ? matchName[1] : "Barang Biasa";
+                
+                let qty = 1; let price = 0;
+                if(mathOnly.includes('*')) {
+                    let mp = mathOnly.split('*');
+                    let v1 = parseInt(mp[0]); let v2 = parseInt(mp[1]);
+                    if(!isNaN(v1) && !isNaN(v2)) { price = Math.max(v1, v2); qty = Math.min(v1, v2); }
+                } else {
+                    try { price = parseInt(eval(mathOnly)); } catch(e) {}
+                }
+                
+                // Tambahkan tanda minus jika item tersebut dikurangi (Retur/Koreksi)
+                let sign = (i > 0 && parts[i-1] === '-') ? '(Minus) ' : '';
+                items.push(`${sign}${qty}x ${itemName} (Rp${price})`);
+            }
+            return items.join(' | ');
+        }
+
+        async function exportHistoryCSV() {
+            let history = JSON.parse(localStorage.getItem('tx_history')) || [];
+            if(history.length === 0) {
+                await showAlert("Belum ada riwayat transaksi untuk di-download.");
+                return;
+            }
+
+            // Membuat Header CSV
+            let csvContent = "Tanggal,Waktu,No Transaksi,Total Belanja,Dibayar,Kembali/Hutang,Status,Rincian Barang\n";
+            
+            history.forEach(row => {
+                let status = row.change >= 0 ? "LUNAS" : "HUTANG";
+                let rincian = parseExpressionToReadable(row.expression);
+                
+                // Escape (bungkus dengan kutip) agar tanda koma di dalam teks tidak merusak format Excel
+                let tgl = `"${row.dateStr || ''}"`;
+                let wkt = `"${row.timeStr || ''}"`;
+                let noTx = `"${row.txNumber || ''}"`;
+                let tot = `"${row.total || 0}"`;
+                let dibyr = `"${row.pay || 0}"`;
+                let kmbli = `"${row.change || 0}"`;
+                let stat = `"${status}"`;
+                let rinc = `"${rincian.replace(/"/g, '""')}"`;
+                
+                csvContent += `${tgl},${wkt},${noTx},${tot},${dibyr},${kmbli},${stat},${rinc}\n`;
+            });
+
+            // Melakukan Trigger Download
+            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            let filename = `Laporan_Penjualan_ADS_${new Date().toLocaleDateString('id-ID').replace(/\//g,'-')}.csv`;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
 
         async function connectBluetooth() {
             if (!navigator.bluetooth) { await showAlert("Browser ini tidak mendukung koneksi Bluetooth langsung."); return; }
