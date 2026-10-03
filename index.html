@@ -452,7 +452,10 @@
 
         // FUNGSI DETEKSI PERANGKAT (HP/TABLET vs DESKTOP)
         function isMobileDevice() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+            // Murni mengecek Sistem Operasi dari User Agent (Android/iOS/dll)
+            // Pengecekan lebar layar (window.innerWidth) dihapus agar Desktop tidak salah terdeteksi
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
         }
 
         async function attemptFullScreen() { 
