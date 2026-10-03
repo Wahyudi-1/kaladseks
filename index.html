@@ -588,12 +588,15 @@
             saveState();
             let currentMath = getMathString(expression);
             
-            // Jika sebelumnya sudah ada input angka (tanpa operator)
-            if (currentMath !== "" && !['+','-','*','/'].includes(currentMath.slice(-1))) {
-                expression += "+";
+            // Jika layar masih 0, timpa langsung. Jika tidak, tambah operator +
+            if (expression === "0" || expression === "") {
+                expression = harga + "@" + nama + "@";
+            } else {
+                if (currentMath !== "" && !['+','-','*','/'].includes(currentMath.slice(-1))) {
+                    expression += "+";
+                }
+                expression += harga + "@" + nama + "@";
             }
-            // Sisipkan harga dan label (format: harga@NAMA BARANG@)
-            expression += harga + "@" + nama + "@";
             
             updateDisplay();
             closeSearch();
@@ -958,20 +961,53 @@
         }
 
         function appendNum(num) {
-            if(!isPaymentMode) { saveState(); if(expression==="0" && num!==".") expression=""; expression+=num; }
-            else { if(paymentInput.length>12) return; paymentInput+=num; }
+            if(!isPaymentMode) { 
+                saveState(); 
+                
+                // Cek apakah kursor sedang berada tepat di depan tag nama barang
+                let match = expression.match(/(@[^@]*@)$/);
+                if (match) {
+                    let tag = match[1]; // Ekstrak tag nama barang (contoh: @Indomie@)
+                    let withoutTag = expression.slice(0, -tag.length); // Ekstrak angkanya
+                    
+                    // Timpa angka 0 dengan angka baru agar tidak menjadi "05"
+                    if (withoutTag === "0" && num !== ".") {
+                        withoutTag = num;
+                    } else if (withoutTag.length >= 2 && ['+','-','*','/'].includes(withoutTag.slice(-2, -1)) && withoutTag.slice(-1) === "0" && num !== ".") {
+                        withoutTag = withoutTag.slice(0, -1) + num;
+                    } else {
+                        withoutTag += num;
+                    }
+                    
+                    // Pasang kembali tag namanya di ujung
+                    expression = withoutTag + tag;
+                } else {
+                    if(expression==="0" && num!==".") expression=""; 
+                    expression += num;
+                }
+            }
+            else { 
+                if(paymentInput.length>12) return; 
+                paymentInput+=num; 
+            }
             updateDisplay();
         }
         
         function appendOp(op) {
             if(isPaymentMode || expression==="") return;
             saveState();
-            let mathExpr = getMathString(expression);
-            if(['+','-','*','/'].includes(mathExpr.slice(-1))) {
-                 // Jika ganti operator, buang operator lama di string mentahnya
-                 expression = expression.slice(0,-1) + op;
+            
+            // Jika ada tag barang di ujung, langsung tambah operator baru di belakangnya
+            if (expression.match(/(@[^@]*@)$/)) {
+                expression += op;
             } else {
-                 expression+=op;
+                let mathExpr = getMathString(expression);
+                if(['+','-','*','/'].includes(mathExpr.slice(-1))) {
+                     // Ganti operator lama
+                     expression = expression.slice(0,-1) + op;
+                } else {
+                     expression += op;
+                }
             }
             updateDisplay();
         }
@@ -979,15 +1015,31 @@
         function backspace() {
             if(!isPaymentMode) { 
                 saveState(); 
-                // Jika menghapus dan bertemu dengan tag barang, hapus seluruh nama barang tsb
-                if (expression.endsWith('@')) {
-                    expression = expression.replace(/@[^@]*@$/, '');
+                
+                // Cek apakah diakhiri dengan tag nama barang
+                let match = expression.match(/(@[^@]*@)$/);
+                if (match) {
+                    let tag = match[1];
+                    let withoutTag = expression.slice(0, -tag.length);
+                    
+                    // Hapus 1 karakter digit terakhir (angka dari harga)
+                    withoutTag = withoutTag.slice(0, -1);
+                    
+                    // Jika dihapus sampai habis angkanya, kembalikan ke 0 (menjaga format)
+                    if(withoutTag === "" || ['+','-','*','/'].includes(withoutTag.slice(-1))) {
+                        withoutTag += "0"; 
+                    }
+                    
+                    // Gabungkan angka yang sudah dihapus dengan nama barang yang utuh
+                    expression = withoutTag + tag; 
+                } else {
+                    expression = expression.slice(0,-1); 
+                    if(expression==="") expression="0"; 
                 }
-                // Hapus 1 karakter terakhir (angka dari harga)
-                expression = expression.slice(0,-1); 
-                if(expression==="") expression="0"; 
             }
-            else paymentInput = paymentInput.slice(0,-1);
+            else {
+                paymentInput = paymentInput.slice(0,-1);
+            }
             updateDisplay();
         }
 
