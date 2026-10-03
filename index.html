@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Kalkulator ADS">
+    <meta name="application-name" content="Kalkulator ADS">
+
+    <title>Kalkulator ADS</title>
+    <link rel="manifest" id="manifest-placeholder" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧮</text></svg>">
+
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        :root {
+            --bg-color: #f1f5f9;
+            --screen-bg: #ffffff;
+            --btn-num-bg: #ffffff;
+            --btn-op-bg: #dbeafe;
+            --btn-action-bg: #2563eb;
+            --btn-print-bg: #ea580c;
+            --btn-save-bg: #059669;
+            --btn-clear-bg: #dc2626;
+            --btn-tool-bg: #475569;
+            --btn-rotate-bg: #0f766e;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-variant-numeric: normal;
+            background-color: var(--bg-color);
+            margin: 0; padding: 0; height: 100vh; width: 100vw; overflow: hidden;
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: auto 40% 1fr; 
+            grid-template-areas: "toolbar" "display" "keypad";
+        }
+
+        body.external-keyboard-mode { grid-template-rows: auto 1fr auto; }
+
+        @media (orientation: landscape) {
+            body {
+                grid-template-columns: 40% 60%;
+                grid-template-rows: auto 1fr;
+                grid-template-areas: "toolbar keypad" "display keypad";
+            }
+            body.external-keyboard-mode { grid-template-columns: 70% 30%; }
+        }
+
+        .toolbar {
+            grid-area: toolbar; display: flex; justify-content: center; align-items: center;
+            background: #e2e8f0; z-index: 5; min-height: 40px; padding: 5px; 
+            gap: 10px; grid-gap: 10px; 
+        }
+        
+        .btn-header {
+            background-color: #2563eb; color: white; border: none; border-radius: 6px;
+            padding: 8px 12px; font-size: 14px; font-weight: bold; cursor: pointer;
+            display: flex; align-items: center; gap: 5px;
+        }
+        #btn-update { background-color: #0284c7; } 
+        #btn-search-header { background-color: #059669; }
+        #btn-install { display: none; } 
+
+        .display-container {
+            grid-area: display; background: var(--screen-bg); padding: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; z-index: 4;
+            display: flex; flex-direction: column; overflow: hidden; cursor: pointer; 
+        }
+
+        #view-calc { display: flex; flex-direction: column; height: 100%; justify-content: space-between; }
+
+        .receipt-list {
+            flex: 1; overflow-y: auto; text-align: right; padding-right: 5px; margin-bottom: 5px;
+        }
+
+        .receipt-item {
+            font-size: 28px; 
+            font-size: clamp(1.6rem, 4vh, 2.2rem); 
+            color: #334155; 
+            font-weight: 600; 
+            border-bottom: 1px dashed #e2e8f0; padding: 6px 0;
+            line-height: 1.3;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            flex-direction: column; /* Ubah ke column agar nama barang di atas angka */
+        }
+        
+        .receipt-item-name {
+            font-size: 14px;
+            color: var(--btn-action-bg);
+            font-weight: bold;
+            text-align: right;
+            margin-bottom: -5px; /* Mendekatkan teks nama dengan harga */
+        }
+
+        .receipt-item:active { background-color: #f8fafc; border-radius: 4px; }
+        .receipt-item.active { color: var(--text-main); font-weight: 800; border-bottom: none; }
+
+        .live-total-box {
+            background: #f8fafc; border-top: 2px solid #2563eb; padding: 5px 0; text-align: right;
+        }
+
+        .total-label { display: block; font-size: 12px; color: var(--text-muted); }
+        #main-display { 
+            font-size: 40px;
+            font-size: clamp(2.5rem, 6vh, 4rem); 
+            font-weight: 800; color: var(--text-main); line-height: 1; 
+        }
+
+        .pay-mode-view { display: none; flex-direction: column; justify-content: space-between; height: 100%; padding: 5px 0; }
+        .pay-row { display: flex; justify-content: space-between; align-items: center; }
+        .label-pay { font-size: 16px; font-weight: bold; color: #64748b; }
+        
+        .btn-edit-total { background: #f59e0b; border: none; border-radius: 4px; color: white; padding: 5px 10px; font-weight: bold; }
+        
+        #pay-total { font-size: 24px; font-weight: bold; }
+        #pay-input-display { font-size: 40px; font-size: clamp(2.5rem, 7vh, 4rem); font-weight: 800; text-align: right; border-bottom: 3px solid #2563eb; }
+        #pay-change-display { font-size: 24px; font-weight: bold; text-align: right; color: var(--btn-save-bg); }
+
+        .keypad-container {
+            grid-area: keypad; padding: 5px; display: grid; 
+            gap: 4px; grid-gap: 4px; background-color: var(--bg-color);
+            height: 100%; overflow-y: auto;
+            grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(6, 1fr);
+        }
+
+        body.external-keyboard-mode .keypad-container {
+            grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 60px); 
+            align-content: end; height: auto; padding-top: 0;
+        }
+
+        button {
+            border: none; border-radius: 6px; font-family: Arial, Helvetica, sans-serif;
+            font-size: 24px; font-size: clamp(1.5rem, 4vh, 2.5rem); 
+            font-weight: 700; cursor: pointer; color: var(--text-main); background: var(--btn-num-bg);
+            box-shadow: 0 2px 0 #cbd5e1; display: flex; align-items: center; justify-content: center;
+            width: 100%; height: 100%;
+        }
+        button:active { opacity: 0.7; transform: translateY(2px); }
+
+        body.external-keyboard-mode .virtual-key { display: none !important; }
+
+        .btn-tool { background-color: var(--btn-tool-bg); color: white; font-size: 14px; flex-direction: column; }
+        .btn-undo { background-color: #f59e0b; color: white; font-size: 14px; flex-direction: column; }
+        .btn-rotate { background-color: var(--btn-rotate-bg); color: white; font-size: 14px; flex-direction: column; }
+        .btn-op { background-color: var(--btn-op-bg); color: #1e3a8a; }
+        .btn-clear { background-color: var(--btn-clear-bg); color: white; font-size: 20px; }
+        .btn-pay { background-color: var(--btn-action-bg); color: white; font-size: 16px; text-transform: uppercase; }
+        .btn-eq { background-color: #2563eb; color: white; }
+
+        .modal-overlay { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; }
+        .modal-content { background:white; width:90%; max-width:450px; max-height:85vh; border-radius:10px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2); }
+        .modal-header { padding:15px; background:var(--btn-action-bg); color:white; font-size:1.2rem; font-weight:bold; display:flex; justify-content:space-between; align-items:center; }
+        .modal-close { background:none; border:none; color:white; font-size:2rem; cursor:pointer; padding:0; line-height:0.5; height:auto; width:auto; box-shadow:none; }
+        .modal-body { padding:15px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px; background:#f8fafc; }
+        
+        .history-card { background:white; border:1px solid #e2e8f0; border-radius:8px; padding:12px; box-shadow:0 2px 4px rgba(0,0,0,0.05); }
+        .history-time { font-size:0.85rem; color:var(--text-muted); margin-bottom:5px; border-bottom:1px dashed #e2e8f0; padding-bottom:5px; }
+        .history-total { font-weight:800; font-size:1.1rem; color:var(--text-main); margin-bottom:5px; }
+        .history-details { font-size:0.9rem; color:#475569; margin-bottom:10px; }
+        .btn-reprint { background:var(--btn-print-bg); color:white; border:none; border-radius:6px; padding:10px; font-weight:bold; width:100%; display:flex; justify-content:center; align-items:center; gap:8px; font-size:1rem; cursor:pointer; box-shadow:0 2px 0 #c2410c; }
+        .btn-reprint:active { transform:translateY(2px); box-shadow:none; }
+        
+        .search-item-card { padding:12px; background:white; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: background 0.2s; }
+        .search-item-card:active { background: #e2e8f0; }
+    </style>
+</head>
+<body id="body-app">
+
+    <!-- MODAL KELOLA BARANG -->
+    <div id="manage-modal" class="modal-overlay" style="z-index: 190;">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#8b5cf6;">
+                <span>📦 Kelola Database Barang</span>
+                <button class="modal-close" onclick="closeManageItems()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 15px;">
+                <!-- Form Input Data Baru/Edit -->
+                <div style="background:white; padding:12px; border-radius:6px; border:2px dashed #cbd5e1; margin-bottom:15px;">
+                    <input type="hidden" id="manage-index">
+                    <input type="text" id="manage-name" placeholder="Nama Barang" style="width:100%; padding:10px; font-size:16px; border:1px solid #94a3b8; border-radius:6px; margin-bottom:10px; outline:none;" />
+                    <input type="number" id="manage-price" placeholder="Harga (Misal: 3000)" style="width:100%; padding:10px; font-size:16px; border:1px solid #94a3b8; border-radius:6px; margin-bottom:10px; outline:none;" />
+                    
+                    <div style="display:flex; gap:10px;">
+                        <button id="manage-btn-cancel" onclick="resetManageForm()" style="display:none; flex:1; background:var(--btn-clear-bg); color:white; padding:10px; font-size:14px; font-weight:bold; border-radius:6px;">Batal</button>
+                        <button id="manage-btn-save" onclick="saveItemData()" style="flex:2; background:#059669; color:white; padding:10px; font-size:14px; font-weight:bold; border-radius:6px;">➕ Tambah Barang</button>
+                    </div>
+                </div>
+
+                <!-- Daftar Barang untuk Diedit/Dihapus -->
+                <input type="text" id="manage-search" placeholder="Cari barang untuk diubah..." onkeyup="filterManageList()" style="width:100%; padding:10px; font-size:14px; border:1px solid #e2e8f0; border-radius:6px; margin-bottom:10px; outline:none; background:#f1f5f9;" />
+                <div id="manage-list" style="display:flex; flex-direction:column; gap:8px; overflow-y:auto; flex:1;">
+                    <!-- Hasil akan dimuat lewat JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PENCARIAN BARANG -->
+    <div id="search-modal" class="modal-overlay" style="z-index: 180;">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#059669;">
+                <span>🔍 Cari Barang & Harga</span>
+                <button class="modal-close" onclick="closeSearch()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 15px;">
+                <input type="text" id="search-input" placeholder="Ketik nama barang..." style="width:100%; padding:12px; font-size:16px; border:2px solid #cbd5e1; border-radius:6px; margin-bottom:10px; outline:none;" onkeyup="filterSearch()" />
+                <div id="search-results" style="display:flex; flex-direction:column; gap:8px; overflow-y:auto;">
+                    <!-- Hasil akan dimuat lewat JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL POPUP RIWAYAT -->
+    <div id="history-modal" class="modal-overlay">
+        <!-- (Konten Modal Riwayat Sama seperti sebelumnya) -->
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>📜 Riwayat Transaksi</span>
+                <button class="modal-close" onclick="closeHistory()">&times;</button>
+            </div>
+            <div class="modal-body" id="history-list"></div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT ITEM INLINE -->
+    <div id="edit-modal" class="modal-overlay" style="z-index: 150;" data-item-name="">
+        <div class="modal-content" style="max-width: 320px;">
+            <div class="modal-header">
+                <span>✏️ Ubah Harga/Kuantitas</span>
+                <button class="modal-close" onclick="closeEdit()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label style="font-size:14px; color:#64748b; margin-bottom:5px; display:block;">Ketik nominal baru (cth: 5000 atau 2*5000):</label>
+                <div id="edit-item-label" style="font-weight:bold; color:#2563eb; margin-bottom:5px;"></div>
+                <input type="text" id="edit-input" inputmode="text" style="width:100%; font-size:24px; font-weight:bold; padding:12px; border:2px solid #cbd5e1; border-radius:6px; margin-bottom:15px; outline:none;" />
+                <div style="display:flex; gap:10px;">
+                    <button onclick="deleteEditItem()" style="flex:1; background:var(--btn-clear-bg); color:white; padding:12px; font-size:16px; font-weight:bold; border-radius:6px;">🗑️ Hapus</button>
+                    <button onclick="saveEditItem()" style="flex:1; background:var(--btn-save-bg); color:white; padding:12px; font-size:16px; font-weight:bold; border-radius:6px;">💾 Simpan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DIALOG PENGGANTI ALERT/CONFIRM -->
+    <div id="dialog-modal" class="modal-overlay" style="z-index: 200;">
+        <div class="modal-content" style="max-width: 300px; padding-bottom: 10px;">
+            <div class="modal-header" id="dialog-title" style="background:#475569;">Informasi</div>
+            <div class="modal-body" style="text-align:center;">
+                <p id="dialog-message" style="margin-bottom:20px; font-size:16px; color:#334155; line-height:1.4;"></p>
+                <div style="display:flex; gap:10px; justify-content:center;">
+                    <button id="dialog-btn-cancel" style="background:var(--btn-clear-bg); color:white; padding:10px 20px; font-size:16px; font-weight:bold; border-radius:6px; display:none; flex:1;">Batal</button>
+                    <button id="dialog-btn-ok" style="background:var(--btn-action-bg); color:white; padding:10px 20px; font-size:16px; font-weight:bold; border-radius:6px; flex:1;">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toolbar" id="toolbar-area">
+        <button class="btn-header" id="btn-manage" onclick="openManageItems()" style="background-color: #8b5cf6;">📦 Data</button>
+        <button class="btn-header" id="btn-search-header" onclick="openSearch()">🔍 Cari</button>
+        <button class="btn-header" id="btn-update" onclick="checkForUpdate()">🔄 Update</button>
+        <button class="btn-header" id="btn-install" onclick="installApp()">📲 Install</button>
+    </div>
+
+    <div class="display-container" id="display-area">
+        <div id="view-calc">
+            <div id="receipt-list" class="receipt-list"><div class="receipt-item active">0</div></div>
+            <div class="live-total-box">
+                <span class="total-label">Total Belanja:</span>
+                <span id="main-display">0</span>
+            </div>
+        </div>
+
+        <div id="view-pay" class="pay-mode-view">
+            <div class="pay-row">
+                <div class="label-group" style="display:flex; gap:5px; align-items:center;">
+                    <span class="label-pay">TOTAL</span>
+                    <button class="btn-edit-total" onclick="editTransaction()">UBAH</button>
+                </div>
+                <span id="pay-total">Rp0</span>
+            </div>
+            <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+                <div style="text-align:right; font-size:14px; color:#64748b;">Uang Pelanggan:</div>
+                <div id="pay-input-display">0</div>
+            </div>
+            <div class="pay-row">
+                <span class="label-pay" id="pay-change-label">KEMBALI</span>
+                <span id="pay-change-display">Rp0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="keypad-container" id="keypad">
+        <button class="btn-tool" onclick="toggleSound()" id="btn-sound">🔊<br>Suara</button>
+        <button class="btn-tool" onclick="connectBluetooth()" id="btn-bt">🖨️<br>Connect</button>
+        <button class="btn-tool" onclick="showHistory()">📜<br>Riwayat</button>
+        <button class="btn-undo" onclick="undoLastAction()">↩️<br>Batal</button>
+
+        <button class="btn-clear" onclick="clearAll()">AC</button>
+        <button class="btn-rotate" onclick="toggleOrientation()">⟳<br>Putar</button>
+        <button id="btn-main-action" class="btn-pay" onclick="handleMainAction()">BAYAR</button>
+        <button class="btn-backspace virtual-key" onclick="backspace()">⌫</button>
+
+        <button onclick="appendNum('7')" class="virtual-key">7</button>
+        <button onclick="appendNum('8')" class="virtual-key">8</button>
+        <button onclick="appendNum('9')" class="virtual-key">9</button>
+        <button class="btn-op virtual-key" onclick="appendOp('/')">÷</button>
+
+        <button onclick="appendNum('4')" class="virtual-key">4</button>
+        <button onclick="appendNum('5')" class="virtual-key">5</button>
+        <button onclick="appendNum('6')" class="virtual-key">6</button>
+        <button class="btn-op virtual-key" onclick="appendOp('*')">×</button>
+
+        <button onclick="appendNum('1')" class="virtual-key">1</button>
+        <button onclick="appendNum('2')" class="virtual-key">2</button>
+        <button onclick="appendNum('3')" class="virtual-key">3</button>
+        <button class="btn-op virtual-key" onclick="appendOp('-')">-</button>
+
+        <button onclick="appendNum('0')" class="virtual-key">0</button>
+        <button class="btn-zero-xx virtual-key" onclick="appendNum('00')">00</button>
+        <button class="btn-zero-xx virtual-key" onclick="appendNum('000')">000</button>
+        <button class="btn-op virtual-key" onclick="appendOp('+')">+</button>
+    </div>
+
+    <script>
+        // ==========================================
+        // DATABASE SISTEM PENYIMPANAN
+        // Menggunakan LocalStorage agar bisa diedit di dalam aplikasi
+        // ==========================================
+        const defaultDbBarang = [
+            { nama: "Indomie Goreng", harga: 3000 },
+            { nama: "Indomie Kuah Ayam Bawang", harga: 2800 },
+            { nama: "Beras 1Kg", harga: 15000 },
+            { nama: "Beras 5Kg", harga: 72000 },
+            { nama: "Minyak Goreng 1L", harga: 16000 },
+            { nama: "Minyak Goreng 2L", harga: 31000 },
+            { nama: "Gula Pasir 1Kg", harga: 17000 },
+            { nama: "Telur Ayam 1Kg", harga: 27000 },
+            { nama: "Kopi Hitam Renteng", harga: 12000 },
+            { nama: "Sabun Mandi Cair", harga: 18000 },
+            { nama: "Shampoo Botol Kecil", harga: 15000 }
+        ];
+
+        // Ambil data dari penyimpanan hp. Jika kosong, pakai data bawaan (default)
+        function getDb() {
+            let savedData = localStorage.getItem('ads_db_barang');
+            if (savedData) return JSON.parse(savedData);
+            
+            // Jika baru pertama kali buka
+            localStorage.setItem('ads_db_barang', JSON.stringify(defaultDbBarang));
+            return defaultDbBarang;
+        }
+
+        // Simpan perubahan ke penyimpanan hp
+        function saveDb(newDb) {
+            localStorage.setItem('ads_db_barang', JSON.stringify(newDb));
+        }
+
+        const manifestData = {
+            "name": "Kalkulator ADS",
+            "short_name": "Kalkulator ADS",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#f1f5f9",
+            "theme_color": "#2563eb",
+            "icons": [{
+                "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧮</text></svg>",
+                "sizes": "192x192",
+                "type": "image/svg+xml"
+            }]
+        };
+
+        const manifestEl = document.getElementById('manifest-placeholder');
+        if (manifestEl) {
+            manifestEl.setAttribute('href', URL.createObjectURL(new Blob([JSON.stringify(manifestData)], {type: 'application/json'})));
+        }
+
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('btn-install').style.display = 'inline-flex'; });
+        async function installApp() { if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; document.getElementById('btn-install').style.display='none'; } }
+        
+        async function checkForUpdate() {
+            if ('serviceWorker' in navigator) {
+                try {
+                    const reg = await navigator.serviceWorker.getRegistration();
+                    if (reg) {
+                        await showAlert("Mengecek pembaruan kode...");
+                        await reg.update();
+                        await showAlert("Pengecekan selesai. Jika ada pembaruan, aplikasi otomatis memuat ulang.");
+                    } else { await showAlert("Sistem belum siap. Coba muat ulang halaman ini."); }
+                } catch (error) { await showAlert("Gagal mengecek pembaruan."); }
+            } else { await showAlert("Browser tidak mendukung Update."); }
+        }
+
+        function showAlert(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('dialog-modal');
+                document.getElementById('dialog-message').innerText = message;
+                document.getElementById('dialog-title').innerText = "Informasi";
+                document.getElementById('dialog-title').style.background = "#475569";
+                document.getElementById('dialog-btn-cancel').style.display = 'none';
+                modal.style.display = 'flex';
+                document.getElementById('dialog-btn-ok').onclick = () => { modal.style.display = 'none'; resolve(true); };
+            });
+        }
+
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('dialog-modal');
+                document.getElementById('dialog-message').innerText = message;
+                document.getElementById('dialog-title').innerText = "Konfirmasi";
+                document.getElementById('dialog-title').style.background = "#f59e0b";
+                const btnCancel = document.getElementById('dialog-btn-cancel');
+                const btnOk = document.getElementById('dialog-btn-ok');
+                btnCancel.style.display = 'block';
+                modal.style.display = 'flex';
+                btnOk.onclick = () => { modal.style.display = 'none'; resolve(true); };
+                btnCancel.onclick = () => { modal.style.display = 'none'; resolve(false); };
+            });
+        }
+
+        async function attemptFullScreen() { 
+            if(!document.fullscreenElement && document.documentElement.requestFullscreen){ 
+                try { await document.documentElement.requestFullscreen(); } catch(e) {}
+            } 
+        }
+        document.body.addEventListener('click', attemptFullScreen); 
+        document.body.addEventListener('touchstart', attemptFullScreen);
+
+        async function toggleOrientation() {
+            await attemptFullScreen();
+            const type = screen.orientation.type;
+            try {
+                if (type.startsWith('portrait')) await screen.orientation.lock('landscape');
+                else await screen.orientation.lock('portrait');
+            } catch (err) {
+                try { screen.orientation.unlock(); } catch(e){}
+                await showAlert("Gagal mengunci putaran layar.");
+            }
+        }
+
+        let expression="", totalBill=0, paymentInput="", isPaymentMode=false, isSoundOn=true;
+        let printerDevice=null, printerCharacteristic=null, inputHistory=[], lastTap=0;
+        let isPrinting = false;
+        let usePrinterFontB = false; 
+        let replaceZeroWithO = true;
+        let currentEditIndex = -1;
+        window.audioCtx = null;
+
+        const receiptList = document.getElementById('receipt-list');
+        const mainDisplay = document.getElementById('main-display'); 
+        const payTotalDisplay = document.getElementById('pay-total');
+        const payInputDisplay = document.getElementById('pay-input-display');
+        const payChangeDisplay = document.getElementById('pay-change-display');
+        const btnMain = document.getElementById('btn-main-action');
+        const btnSound = document.getElementById('btn-sound');
+        const btnBt = document.getElementById('btn-bt');
+
+        // Fungsi Bantuan untuk membersihkan tag @Nama Barang@ agar bisa dihitung rumus matematikanya
+        function getMathString(expr) {
+            if (!expr) return "";
+            return expr.replace(/@[^@]*@/g, '');
+        }
+
+        document.getElementById('display-area').addEventListener('click', (e) => {
+            const currentTime = new Date().getTime();
+            if ((currentTime - lastTap) < 300 && (currentTime - lastTap) > 0) {
+                e.preventDefault(); document.body.classList.toggle('external-keyboard-mode');
+            } 
+            lastTap = currentTime;
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.target.tagName === 'INPUT') {
+                if(event.key === 'Enter') {
+                    if (document.getElementById('edit-modal').style.display === 'flex') saveEditItem();
+                }
+                return;
+            }
+
+            const key = event.key;
+            if(['+', '-', '*', '/', 'Enter', 'Backspace', 'Escape', '='].includes(key)) event.preventDefault();
+            if (!document.body.classList.contains('external-keyboard-mode')) document.body.classList.add('external-keyboard-mode');
+            
+            if (!isNaN(key) && key !== ' ') appendNum(key);
+            else if (['+', '-', '*', '/'].includes(key)) appendOp(key);
+            else if (key === 'Enter' || key === '=') handleMainAction();
+            else if (key === 'Backspace') backspace();
+            else if (key === 'Escape') clearAll();
+            else if (key === 'z' && (event.ctrlKey || event.metaKey)) undoLastAction();
+        });
+
+        function scrollToBottom() { setTimeout(() => { receiptList.scrollTop = receiptList.scrollHeight; }, 10); }
+        
+        function formatVisual(text) {
+            if (!text) return "";
+            let vis = text.replace(/\*/g, ' × ').replace(/\//g, ' ÷ ');
+            return vis.replace(/\d+/g, (n) => parseInt(n).toLocaleString('id-ID'));
+        }
+
+        // ==========================================
+        // FITUR PENCARIAN BARANG
+        // ==========================================
+        function openSearch() {
+            if(isPaymentMode) return;
+            document.getElementById('search-modal').style.display = 'flex';
+            document.getElementById('search-input').value = '';
+            renderSearchResults(getDb());
+            setTimeout(() => document.getElementById('search-input').focus(), 100);
+        }
+
+        function closeSearch() { document.getElementById('search-modal').style.display = 'none'; }
+
+        function filterSearch() {
+            let q = document.getElementById('search-input').value.toLowerCase();
+            let db = getDb();
+            let res = db.filter(b => b.nama.toLowerCase().includes(q));
+            renderSearchResults(res);
+        }
+
+        function renderSearchResults(items) {
+            let html = '';
+            if (items.length === 0) {
+                html = '<div style="text-align:center; padding:20px; color:#64748b;">Barang tidak ditemukan.</div>';
+            } else {
+                items.forEach(item => {
+                    html += `<div class="search-item-card" onclick="addSelectedItem('${item.nama}', ${item.harga})">
+                        <span style="font-weight:bold; color:#334155;">${item.nama}</span>
+                        <span style="color:#059669; font-weight:bold;">Rp${item.harga.toLocaleString('id-ID')}</span>
+                    </div>`;
+                });
+            }
+            document.getElementById('search-results').innerHTML = html;
+        }
+
+        function addSelectedItem(nama, harga) {
+            saveState();
+            let currentMath = getMathString(expression);
+            
+            // Jika sebelumnya sudah ada input angka (tanpa operator)
+            if (currentMath !== "" && !['+','-','*','/'].includes(currentMath.slice(-1))) {
+                expression += "+";
+            }
+            // Sisipkan harga dan label (format: harga@NAMA BARANG@)
+            expression += harga + "@" + nama + "@";
+            
+            updateDisplay();
+            closeSearch();
+        }
+
+        // ==========================================
+        // FITUR KELOLA DATABASE BARANG (CRUD)
+        // ==========================================
+        function openManageItems() {
+            if(isPaymentMode) return;
+            document.getElementById('manage-modal').style.display = 'flex';
+            resetManageForm();
+            renderManageList();
+        }
+
+        function closeManageItems() {
+            document.getElementById('manage-modal').style.display = 'none';
+        }
+
+        function resetManageForm() {
+            document.getElementById('manage-index').value = '';
+            document.getElementById('manage-name').value = '';
+            document.getElementById('manage-price').value = '';
+            document.getElementById('manage-btn-save').innerText = '➕ Tambah Barang';
+            document.getElementById('manage-btn-save').style.backgroundColor = '#059669';
+            document.getElementById('manage-btn-cancel').style.display = 'none';
+        }
+
+        function renderManageList(query = '') {
+            let db = getDb();
+            let html = '';
+            
+            let filteredDb = db.map((item, index) => ({ item, index }))
+                               .filter(obj => !query || obj.item.nama.toLowerCase().includes(query.toLowerCase()));
+
+            if (filteredDb.length === 0) {
+                html = '<div style="text-align:center; padding:20px; color:#64748b;">Tidak ada data barang.</div>';
+            } else {
+                filteredDb.forEach(obj => {
+                    html += `
+                        <div class="search-item-card" style="margin-bottom:5px; display:flex; flex-direction:column; gap:8px;">
+                            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                                <span style="font-weight:bold; color:#334155; font-size:15px;">${obj.item.nama}</span>
+                                <span style="color:#059669; font-weight:bold;">Rp${obj.item.harga.toLocaleString('id-ID')}</span>
+                            </div>
+                            <div style="display:flex; gap:5px; width:100%;">
+                                <button onclick="editItemData(${obj.index})" style="flex:1; background:#f59e0b; color:white; padding:8px; font-size:14px; border-radius:4px; font-weight:bold;">✏️ Ubah</button>
+                                <button onclick="deleteItemData(${obj.index})" style="flex:1; background:var(--btn-clear-bg); color:white; padding:8px; font-size:14px; border-radius:4px; font-weight:bold;">🗑️ Hapus</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            document.getElementById('manage-list').innerHTML = html;
+        }
+
+        function filterManageList() {
+            let q = document.getElementById('manage-search').value;
+            renderManageList(q);
+        }
+
+        async function saveItemData() {
+            let index = document.getElementById('manage-index').value;
+            let name = document.getElementById('manage-name').value.trim();
+            let price = parseInt(document.getElementById('manage-price').value);
+
+            if (!name) { await showAlert("Nama barang tidak boleh kosong!"); return; }
+            if (isNaN(price) || price < 0) { await showAlert("Harga barang tidak valid!"); return; }
+
+            let db = getDb();
+            
+            if (index === '') {
+                // Mode Tambah Baru
+                if (db.some(b => b.nama.toLowerCase() === name.toLowerCase())) {
+                    await showAlert("Barang dengan nama ini sudah ada di database!");
+                    return;
+                }
+                db.unshift({ nama: name, harga: price }); // Masukkan ke urutan paling atas
+            } else {
+                // Mode Edit
+                db[index] = { nama: name, harga: price };
+            }
+            
+            saveDb(db);
+            resetManageForm();
+            renderManageList(document.getElementById('manage-search').value);
+        }
+
+        function editItemData(index) {
+            let db = getDb();
+            let item = db[index];
+            document.getElementById('manage-index').value = index;
+            document.getElementById('manage-name').value = item.nama;
+            document.getElementById('manage-price').value = item.harga;
+            
+            document.getElementById('manage-btn-save').innerText = '💾 Simpan Perubahan';
+            document.getElementById('manage-btn-save').style.backgroundColor = '#2563eb';
+            document.getElementById('manage-btn-cancel').style.display = 'block';
+            
+            // Scroll ke atas agar form edit terlihat
+            document.querySelector('#manage-modal .modal-body').scrollTop = 0;
+        }
+
+        async function deleteItemData(index) {
+            if (await showConfirm("Yakin ingin menghapus barang ini?")) {
+                let db = getDb();
+                db.splice(index, 1);
+                saveDb(db);
+                resetManageForm();
+                renderManageList(document.getElementById('manage-search').value);
+            }
+        }
+
+        // ==========================================
+        // FITUR EDIT (INLINE EDITING)
+        // ==========================================
+        function openEdit(e, index) {
+            e.stopPropagation(); 
+            if(isPaymentMode) return; 
+            
+            let parts = expression.split(/([+\-])/);
+            currentEditIndex = index;
+            
+            let partContent = parts[index];
+            let mathOnly = getMathString(partContent);
+            let matchName = partContent.match(/@([^@]*)@/);
+            let itemName = matchName ? matchName[1] : '';
+
+            document.getElementById('edit-input').value = mathOnly;
+            document.getElementById('edit-item-label').innerText = itemName ? `Barang: ${itemName}` : '';
+            document.getElementById('edit-modal').dataset.itemName = itemName; // Simpan nama sementara
+            
+            document.getElementById('edit-modal').style.display = 'flex';
+            setTimeout(() => document.getElementById('edit-input').focus(), 100);
+        }
+
+        function closeEdit() {
+            document.getElementById('edit-modal').style.display = 'none';
+            currentEditIndex = -1;
+        }
+
+        function saveEditItem() {
+            let newVal = document.getElementById('edit-input').value.trim();
+            newVal = newVal.replace(/[^0-9*/.]/g, ''); 
+            if(!newVal) { deleteEditItem(); return; }
+            
+            let savedName = document.getElementById('edit-modal').dataset.itemName;
+            if (savedName) newVal = newVal + "@" + savedName + "@"; // Kembalikan tag nama ke string
+            
+            let parts = expression.split(/([+\-])/);
+            parts[currentEditIndex] = newVal;
+            
+            saveState();
+            expression = parts.join('');
+            closeEdit();
+            updateDisplay();
+        }
+
+        function deleteEditItem() {
+            let parts = expression.split(/([+\-])/);
+            if (currentEditIndex === 0) {
+                if (parts.length > 1) parts.splice(0, 2);
+                else parts = [""]; 
+            } else {
+                parts.splice(currentEditIndex - 1, 2); 
+            }
+            saveState();
+            expression = parts.join('');
+            if (expression === "") expression = "";
+            closeEdit();
+            updateDisplay();
+        }
+
+        function initAudio() { if(!window.audioCtx && (window.AudioContext||window.webkitAudioContext)) window.audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+        function playClickSound() {
+            if(!isSoundOn) return; initAudio(); if(!window.audioCtx) return;
+            if(window.audioCtx.state === 'suspended') window.audioCtx.resume();
+            const osc = window.audioCtx.createOscillator(); const g = window.audioCtx.createGain();
+            osc.connect(g); g.connect(window.audioCtx.destination);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(1200, window.audioCtx.currentTime);
+            g.gain.setValueAtTime(0.05, window.audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, window.audioCtx.currentTime+0.05);
+            osc.start(); osc.stop(window.audioCtx.currentTime+0.05);
+        }
+        function toggleSound() { isSoundOn = !isSoundOn; btnSound.innerHTML = isSoundOn ? '🔊<br>Suara' : '🔇<br>Mute'; if(isSoundOn) playClickSound(); }
+        document.getElementById('keypad').addEventListener('click', (e) => { if(e.target.closest('button')) playClickSound(); });
+
+        function saveState() { if(inputHistory.length > 20) inputHistory.shift(); inputHistory.push(expression); }
+        function undoLastAction() { if(isPaymentMode) return; if(inputHistory.length>0){ expression = inputHistory.pop(); updateDisplay(); } }
+
+        function updateDisplay() {
+            if (!isPaymentMode) {
+                if (!expression) {
+                    receiptList.innerHTML = '<div class="receipt-item active">0</div>'; mainDisplay.innerText = "0";
+                } else {
+                    let parts = expression.split(/([+\-])/);
+                    let html = '';
+                    
+                    const createItem = (op, content, isActive, partIndex) => {
+                        let contentMath = getMathString(content);
+                        let matchName = content.match(/@([^@]*)@/);
+                        let itemName = matchName ? matchName[1] : '';
+
+                        let formatted = formatVisual(contentMath);
+                        let subRes = "";
+                        
+                        if (contentMath.match(/[\*\/]/) && !contentMath.match(/[\*\/]$/)) {
+                            try {
+                                let val = eval(contentMath);
+                                if (!isNaN(val)) subRes = "= " + val.toLocaleString('id-ID');
+                            } catch(e) {}
+                        }
+                        
+                        let flexStyle = 'display:flex; justify-content:space-between; align-items:end; width:100%;';
+                        let rightSide = subRes ? `<span style="opacity:0.8; font-size:16px;">${subRes}</span>` : '';
+                        let nameHtml = itemName ? `<div class="receipt-item-name">${itemName}</div>` : '';
+                        
+                        return `<div class="receipt-item ${isActive}" onclick="openEdit(event, ${partIndex})">
+                            ${nameHtml}
+                            <div style="${flexStyle}">
+                                <span>${op} ${formatted}</span>
+                                ${rightSide}
+                            </div>
+                        </div>`;
+                    };
+
+                    if (parts.length > 0) {
+                        let content = parts[0];
+                        if (content !== "" || parts.length === 1) {
+                             let isActive = (parts.length === 1) ? 'active' : '';
+                             html += createItem('', content || '0', isActive, 0);
+                        }
+                    }
+
+                    for (let i = 1; i < parts.length; i += 2) {
+                        let operator = parts[i];
+                        let content = parts[i+1] || "";
+                        let isActive = (i + 2 >= parts.length) ? 'active' : '';
+                        html += createItem(operator, content, isActive, i+1);
+                    }
+                    receiptList.innerHTML = html;
+                    
+                    try {
+                        let evalExpr = getMathString(expression);
+                        if(['+','-','*','/'].includes(evalExpr.slice(-1))) evalExpr = evalExpr.slice(0,-1);
+                        if(evalExpr) mainDisplay.innerText = eval(evalExpr).toLocaleString('id-ID');
+                    } catch (e) { }
+                }
+                scrollToBottom();
+            } else {
+                let val = parseInt(paymentInput || "0");
+                payInputDisplay.innerText = val.toLocaleString('id-ID');
+                let change = val - totalBill;
+                if (change >= 0) {
+                    document.getElementById('pay-change-label').innerText = "KEMBALI";
+                    payChangeDisplay.innerText = "Rp" + change.toLocaleString('id-ID');
+                    payChangeDisplay.style.color = "#059669";
+                } else {
+                    document.getElementById('pay-change-label').innerText = "HUTANG";
+                    payChangeDisplay.innerText = "Rp" + Math.abs(change).toLocaleString('id-ID');
+                    payChangeDisplay.style.color = "#dc2626";
+                }
+            }
+        }
+
+        function appendNum(num) {
+            if(!isPaymentMode) { saveState(); if(expression==="0" && num!==".") expression=""; expression+=num; }
+            else { if(paymentInput.length>12) return; paymentInput+=num; }
+            updateDisplay();
+        }
+        
+        function appendOp(op) {
+            if(isPaymentMode || expression==="") return;
+            saveState();
+            let mathExpr = getMathString(expression);
+            if(['+','-','*','/'].includes(mathExpr.slice(-1))) {
+                 // Jika ganti operator, buang operator lama di string mentahnya
+                 expression = expression.slice(0,-1) + op;
+            } else {
+                 expression+=op;
+            }
+            updateDisplay();
+        }
+
+        function backspace() {
+            if(!isPaymentMode) { 
+                saveState(); 
+                // Jika menghapus dan bertemu dengan tag barang, hapus seluruh nama barang tsb
+                if (expression.endsWith('@')) {
+                    expression = expression.replace(/@[^@]*@$/, '');
+                }
+                // Hapus 1 karakter terakhir (angka dari harga)
+                expression = expression.slice(0,-1); 
+                if(expression==="") expression="0"; 
+            }
+            else paymentInput = paymentInput.slice(0,-1);
+            updateDisplay();
+        }
+
+        function clearAll() { if(!isPaymentMode) saveState(); expression=""; paymentInput=""; totalBill=0; isPaymentMode=false; switchModeUI(false); updateDisplay(); }
+        function editTransaction() { isPaymentMode=false; paymentInput=""; switchModeUI(false); }
+
+        function calculate() {
+            try {
+                if(!expression) return 0;
+                let evalExpr = getMathString(expression);
+                if(['+','-','*','/'].includes(evalExpr.slice(-1))) evalExpr = evalExpr.slice(0,-1);
+                if(!evalExpr) return 0;
+                let result = eval(evalExpr);
+                totalBill = result;
+                mainDisplay.innerText = result.toLocaleString('id-ID');
+                return result;
+            } catch(e) { return 0; }
+        }
+
+        async function handleMainAction() {
+            if(!isPaymentMode) {
+                let total = calculate();
+                if(total <= 0) { await showAlert("Total Pembelanjaan 0 atau Error."); return; }
+                totalBill = total; paymentInput=""; isPaymentMode=true;
+                payTotalDisplay.innerText = "Rp" + totalBill.toLocaleString('id-ID');
+                switchModeUI(true); updateDisplay();
+            } else await finishTransaction(true);
+        }
+
+        function switchModeUI(isPay) {
+            const vCalc = document.getElementById('view-calc'); const vPay = document.getElementById('view-pay');
+            if(isPay) { vCalc.style.display='none'; vPay.style.display='flex'; document.body.classList.add('mode-payment'); btnMain.innerText="🖨️ CETAK"; }
+            else { vCalc.style.display='flex'; vPay.style.display='none'; document.body.classList.remove('mode-payment'); btnMain.innerText="BAYAR"; }
+        }
+
+        function getNextTxNumber() {
+            let now = new Date();
+            let currentMonth = now.getFullYear() + "-" + (now.getMonth() + 1); 
+            let storedMonth = localStorage.getItem('tx_month');
+            let counter = parseInt(localStorage.getItem('tx_counter')) || 0;
+            if (currentMonth !== storedMonth) { counter = 1; localStorage.setItem('tx_month', currentMonth); } 
+            else { counter += 1; }
+            localStorage.setItem('tx_counter', counter);
+            return counter;
+        }
+
+        async function finishTransaction(print) {
+            if (isPrinting) return; 
+            let pay = parseInt(paymentInput || "0");
+            let change = pay - totalBill;
+            isPrinting = true; 
+            try {
+                if (print) {
+                    if (!printerCharacteristic) {
+                        if(await showConfirm("Printer belum terhubung. Hubungkan sekarang?")) await connectBluetooth();
+                    }
+                    if (printerCharacteristic) {
+                        let txNum = getNextTxNumber(); 
+                        saveHistory(totalBill, pay, change, expression, txNum); 
+                        await printReceipt(totalBill, pay, change, expression, txNum);
+                        clearAll();
+                    } else {
+                        if(await showConfirm("Gagal konek printer. Simpan saja ke riwayat?")) { 
+                            let txNum = getNextTxNumber();
+                            saveHistory(totalBill, pay, change, expression, txNum); 
+                            clearAll(); 
+                        }
+                    }
+                } else {
+                    let txNum = getNextTxNumber();
+                    saveHistory(totalBill, pay, change, expression, txNum);
+                    clearAll();
+                }
+            } finally { isPrinting = false; }
+        }
+
+        function saveHistory(total, pay, change, expr, txNum) {
+            let history = JSON.parse(localStorage.getItem('tx_history')) || [];
+            history.unshift({ 
+                dateStr: new Date().toLocaleDateString('id-ID'), 
+                timeStr: new Date().toLocaleTimeString('id-ID'), 
+                total: total, pay: pay, change: change, expression: expr, txNumber: txNum
+            });
+            if(history.length > 50) history.pop();
+            localStorage.setItem('tx_history', JSON.stringify(history));
+        }
+
+        function showHistory() {
+            let h = JSON.parse(localStorage.getItem('tx_history')) || [];
+            let list = document.getElementById('history-list');
+            if(h.length === 0) { 
+                list.innerHTML = "<div style='text-align:center; padding:20px; color:#64748b;'>Belum ada riwayat transaksi.</div>"; 
+            } else {
+                let html = "";
+                h.forEach((x, i) => {
+                    let changeText = x.change >= 0 
+                        ? `<span style="color:#059669; font-weight:bold;">Kembali: Rp${x.change.toLocaleString('id-ID')}</span>` 
+                        : `<span style="color:#dc2626; font-weight:bold;">Hutang: Rp${Math.abs(x.change).toLocaleString('id-ID')}</span>`;
+                    let dateDisplay = x.dateStr ? `${x.dateStr} ${x.timeStr}` : (x.date || '-');
+                    let txNumDisplay = x.txNumber ? ` | No. Transaksi : ${x.txNumber}` : '';
+                    html += `
+                    <div class="history-card">
+                        <div class="history-time">📅 ${dateDisplay}${txNumDisplay}</div>
+                        <div class="history-total">Total: Rp ${(x.total || 0).toLocaleString('id-ID')}</div>
+                        <div class="history-details">Bayar: Rp ${(x.pay || 0).toLocaleString('id-ID')}<br>${changeText}</div>
+                        <button class="btn-reprint" onclick="reprintReceipt(${i})">🖨️ Cetak Ulang Struk</button>
+                    </div>`;
+                });
+                list.innerHTML = html;
+            }
+            document.getElementById('history-modal').style.display = 'flex';
+        }
+
+        function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
+
+        async function connectBluetooth() {
+            if (!navigator.bluetooth) { await showAlert("Browser ini tidak mendukung koneksi Bluetooth langsung."); return; }
+            try {
+                if (printerDevice && printerDevice.gatt.connected) printerDevice.gatt.disconnect();
+                printerDevice = await navigator.bluetooth.requestDevice({ filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }] });
+                printerDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                const server = await printerDevice.gatt.connect();
+                await new Promise(r => setTimeout(r, 500));
+                const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+                printerCharacteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+                btnBt.innerHTML = '🟢<br>Ready'; btnBt.style.backgroundColor = "#059669";
+            } catch (e) { await showAlert("Gagal Konek: " + e); onDisconnected(); }
+        }
+
+        function onDisconnected() { btnBt.innerHTML = '🖨️<br>Connect'; btnBt.style.backgroundColor = "#475569"; printerCharacteristic = null; }
+
+        function strToBytes(str) {
+            const bytes = [];
+            for (let i = 0; i < str.length; i++) {
+                let code = str.charCodeAt(i);
+                if (code > 255) code = 63; bytes.push(code);
+            }
+            return new Uint8Array(bytes);
+        }
+
+        async function printReceiptCore(total, pay, change, exprData, isReprint, dateStr, timeStr, txNumber) {
+            if (!printerCharacteristic) { await showAlert("Printer tidak terhubung!"); return; }
+            try {
+                const ESC = '\u001B'; const GS = '\u001D';
+                const center = ESC + 'a' + '\u0001'; const left = ESC + 'a' + '\u0000';
+                const boldOn = ESC + 'E' + '\u0001'; const boldOff = ESC + 'E' + '\u0000';
+                const fontA = GS + '!' + '\u0000'; const fontB = ESC + 'M' + '\u0001'; 
+                const normalFont = usePrinterFontB ? fontB : fontA; 
+                const bigFont = GS + '!' + '\u0011'; const init = ESC + '@';
+
+                let evalExpr = exprData || "0";
+                
+                let rawParts = evalExpr.split(/([+\-])/);
+                let printItems = [];
+                if (rawParts.length > 0 && rawParts[0]) printItems.push({op: '', val: rawParts[0]});
+                for (let i = 1; i < rawParts.length; i += 2) {
+                    if (rawParts[i+1]) printItems.push({op: rawParts[i], val: rawParts[i+1]});
+                }
+
+                let itemsOutput = "";
+                let itemCount = 0;
+                
+                printItems.forEach((itemObj, index) => {
+                    let cleanItemWithTags = itemObj.val.trim();
+                    if(!cleanItemWithTags) return;
+                    
+                    let mathOnly = getMathString(cleanItemWithTags);
+                    let matchName = cleanItemWithTags.match(/@([^@]*)@/);
+                    let itemName = matchName ? matchName[1] : `Brg ${itemCount + 1}`;
+                    
+                    itemCount++;
+                    let qty = 1; let price = 0;
+                    
+                    if(mathOnly.includes('*')) {
+                        let parts = mathOnly.split('*');
+                        let v1 = parseInt(parts[0]); let v2 = parseInt(parts[1]);
+                        if(!isNaN(v1) && !isNaN(v2)) { price = Math.max(v1, v2); qty = Math.min(v1, v2); }
+                    } else { 
+                        try { price = parseInt(eval(mathOnly)); } catch(e) { } 
+                    }
+                    
+                    let sign = (itemObj.op === '-') ? '- ' : ''; 
+                    let lineTotal = qty * price;
+                    
+                    // Format struk baru: Nama Barang di baris atas
+                    itemsOutput += `${itemName}\n`;
+                    itemsOutput += `  ${qty}x${sign}Rp${price.toLocaleString('id-ID')}`;
+                    if(qty > 1) itemsOutput += ` = Rp${lineTotal.toLocaleString('id-ID')}`;
+                    itemsOutput += `\n`;
+                });
+
+                let summaryLine = `Jml Jenis Barang ${itemCount}\n`;
+                let changeText = "";
+                if (change >= 0) changeText = `KEMBALI : Rp ${change.toLocaleString('id-ID')}\n`;
+                else changeText = `HUTANG  : Rp ${Math.abs(change).toLocaleString('id-ID')}\n`;
+
+                let reprintMarker = isReprint ? (center + normalFont + "(CETAK ULANG)\n" + left) : "";
+                let txLine = txNumber ? `No. Transaksi : ${txNumber}\n` : "";
+
+                let receiptText = 
+                    init + 
+                    center + boldOn + bigFont + "TOKO ADS" + normalFont + boldOff + "\n" +
+                    reprintMarker +
+                    "0812-3085-078 (WA)\n" +
+                    "Jl. Sukodono No.92 Ganting\n" +
+                    "Kec. Gedangan, Kab. Sidoarjo\n" +
+                    "--------------------------------\n" +
+                    left + 
+                    `Tgl : ${dateStr} ${timeStr}\n` +
+                    txLine +
+                    "--------------------------------\n" +
+                    itemsOutput + "--------------------------------\n" + 
+                    summaryLine +
+                    boldOn + 
+                    `TOTAL   : Rp ${total.toLocaleString('id-ID')}\n` +
+                    boldOff +
+                    `BAYAR   : Rp ${pay.toLocaleString('id-ID')}\n` +
+                    changeText +
+                    "--------------------------------\n" +
+                    center + "Pesan Barang W.A: 0856-4883-0413\n" +
+                    "Terima Kasih, Semoga Berkah\n\n\n";
+
+                if (replaceZeroWithO) receiptText = receiptText.replace(/0/g, 'O');
+
+                let encodedData = typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(receiptText) : strToBytes(receiptText);
+                const maxChunk = 50; 
+                for (let i = 0; i < encodedData.length; i += maxChunk) {
+                    const chunk = encodedData.slice(i, i + maxChunk);
+                    await printerCharacteristic.writeValue(chunk);
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            } catch (error) { await showAlert("Gagal mencetak: " + error); onDisconnected(); }
+        }
+
+        async function printReceipt(total, pay, change, expr, txNum) {
+            const now = new Date();
+            await printReceiptCore(total, pay, change, expr, false, now.toLocaleDateString('id-ID'), now.toLocaleTimeString('id-ID'), txNum);
+        }
+
+        async function reprintReceipt(index) {
+            if (isPrinting) return;
+            let h = JSON.parse(localStorage.getItem('tx_history')) || [];
+            let itemData = h[index];
+            if(!itemData) return;
+            if (!itemData.expression) { await showAlert("Tidak bisa dicetak: Rincian barang lama tidak tersimpan."); return; }
+            isPrinting = true;
+            try {
+                if (!printerCharacteristic) { if(await showConfirm("Printer belum terhubung. Hubungkan?")) await connectBluetooth(); }
+                if (printerCharacteristic) {
+                    let dStr = itemData.dateStr || itemData.date || '-';
+                    let tStr = itemData.timeStr || '';
+                    let txNum = itemData.txNumber || ''; 
+                    await printReceiptCore(itemData.total, itemData.pay, itemData.change, itemData.expression, true, dStr, tStr, txNum);
+                }
+            } finally { isPrinting = false; }
+        }
+    </script>
+</body>
+</html>
