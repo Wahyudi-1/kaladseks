@@ -92,7 +92,7 @@
             cursor: pointer;
             transition: background 0.2s;
             display: flex;
-            flex-direction: column; /* Ubah ke column agar nama barang di atas angka */
+            flex-direction: column;
         }
         
         .receipt-item-name {
@@ -100,7 +100,7 @@
             color: var(--btn-action-bg);
             font-weight: bold;
             text-align: right;
-            margin-bottom: -5px; /* Mendekatkan teks nama dengan harga */
+            margin-bottom: -5px; 
         }
 
         .receipt-item:active { background-color: #f8fafc; border-radius: 4px; }
@@ -203,7 +203,7 @@
                     <button onclick="showImportArea()" style="flex:1; background:#0284c7; color:white; padding:8px; border-radius:4px; font-size:13px; font-weight:bold;">📥 Import Masal</button>
                 </div>
                 
-                <!-- Area Import (Awalnya Tersembunyi) -->
+                <!-- Area Import (Via File Upload) -->
                 <div id="import-area" style="display:none; margin-bottom:15px; background: #e0f2fe; padding: 10px; border-radius: 6px; border: 1px solid #7dd3fc;">
                     <label style="font-size: 12px; color: #0369a1; font-weight:bold; margin-bottom:5px; display:block;">Pilih file CSV (Format: Nama,Harga):</label>
                     <input type="file" id="import-file" accept=".csv, text/csv, application/vnd.ms-excel, application/csv, text/plain" style="width:100%; padding:10px; background:white; font-size:14px; border:1px solid #93c5fd; border-radius:6px; outline:none; margin-bottom:10px;" />
@@ -237,18 +237,15 @@
 
     <!-- MODAL POPUP RIWAYAT -->
     <div id="history-modal" class="modal-overlay">
-        <!-- (Konten Modal Riwayat Sama seperti sebelumnya) -->
         <div class="modal-content">
             <div class="modal-header">
                 <span>📜 Riwayat Transaksi</span>
                 <button class="modal-close" onclick="closeHistory()">&times;</button>
             </div>
-            <!-- TAMBAHAN TOMBOL DOWNLOAD -->
             <div style="padding: 10px 15px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 14px; font-weight: bold; color: #334155;">Export Laporan Laba/Rugi:</span>
                 <button onclick="exportHistoryCSV()" style="background: #059669; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px; height: auto; width: auto; box-shadow: 0 2px 0 #047857;">📥 Download CSV</button>
             </div>
-            <!-- END TAMBAHAN -->
             <div class="modal-body" id="history-list"></div>
         </div>
     </div>
@@ -356,37 +353,30 @@
     <script>
         // ==========================================
         // DATABASE SISTEM PENYIMPANAN
-        // Menggunakan LocalStorage agar bisa diedit di dalam aplikasi
         // ==========================================
         const defaultDbBarang = [
             { nama: "Indomie Goreng", harga: 3000 },
-            { nama: "Indomie Kuah Ayam Bawang", harga: 2800 },
+            { nama: "Indomie Kuah", harga: 2800 },
             { nama: "Beras 1Kg", harga: 15000 },
-            { nama: "Beras 5Kg", harga: 72000 },
             { nama: "Minyak Goreng 1L", harga: 16000 },
-            { nama: "Minyak Goreng 2L", harga: 31000 },
             { nama: "Gula Pasir 1Kg", harga: 17000 },
-            { nama: "Telur Ayam 1Kg", harga: 27000 },
-            { nama: "Kopi Hitam Renteng", harga: 12000 },
-            { nama: "Sabun Mandi Cair", harga: 18000 },
-            { nama: "Shampoo Botol Kecil", harga: 15000 }
+            { nama: "Telur Ayam 1Kg", harga: 27000 }
         ];
 
-        // Ambil data dari penyimpanan hp. Jika kosong, pakai data bawaan (default)
         function getDb() {
             let savedData = localStorage.getItem('ads_db_barang');
             if (savedData) return JSON.parse(savedData);
-            
-            // Jika baru pertama kali buka
             localStorage.setItem('ads_db_barang', JSON.stringify(defaultDbBarang));
             return defaultDbBarang;
         }
 
-        // Simpan perubahan ke penyimpanan hp
         function saveDb(newDb) {
             localStorage.setItem('ads_db_barang', JSON.stringify(newDb));
         }
 
+        // ==========================================
+        // FITUR PWA & UPDATE & ALERT SYSTEM
+        // ==========================================
         const manifestData = {
             "name": "Kalkulator ADS",
             "short_name": "Kalkulator ADS",
@@ -453,7 +443,7 @@
         // FUNGSI DETEKSI PERANGKAT (HP/TABLET vs DESKTOP)
         function isMobileDevice() {
             // Murni mengecek Sistem Operasi dari User Agent (Android/iOS/dll)
-            // Pengecekan lebar layar (window.innerWidth) dihapus agar Desktop tidak salah terdeteksi
+            // Tanpa mengecek lebar layar agar Desktop tidak dipaksa fullscreen
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
         }
@@ -464,11 +454,9 @@
             } 
         }
 
-        // AUTO FULL-SCREEN HANYA UNTUK MOBILE (Dibatasi oleh pengecekan isMobileDevice)
+        // AUTO FULL-SCREEN HANYA UNTUK MOBILE
         document.body.addEventListener('click', (e) => {
-            // Abaikan jika klik terjadi di dalam modal/dialog
             if(e.target.closest('.modal-content')) return; 
-            
             if(isMobileDevice()) {
                 attemptFullScreen();
             }
@@ -482,7 +470,7 @@
         }, {passive: true});
 
         async function toggleOrientation() {
-            await attemptFullScreen(); // Izinkan paksa fullscreen jika tombol "Putar" ditekan manual
+            await attemptFullScreen(); 
             const type = screen.orientation.type;
             try {
                 if (type.startsWith('portrait')) await screen.orientation.lock('landscape');
@@ -493,6 +481,9 @@
             }
         }
 
+        // ==========================================
+        // VARIABEL KALKULATOR UTAMA
+        // ==========================================
         let expression="", totalBill=0, paymentInput="", isPaymentMode=false, isSoundOn=true;
         let printerDevice=null, printerCharacteristic=null, inputHistory=[], lastTap=0;
         let isPrinting = false;
@@ -510,10 +501,9 @@
         const btnSound = document.getElementById('btn-sound');
         const btnBt = document.getElementById('btn-bt');
 
-        // Fungsi Bantuan untuk membersihkan tag @Nama Barang@ agar bisa dihitung rumus matematikanya
         function getMathString(expr) {
             if (!expr) return "";
-            return expr.replace(/@[^@]*@/g, '');
+            return expr.replace(/@[^@]*@/g, ''); // Hapus semua teks di dalam @@ agar bisa dihitung
         }
 
         document.getElementById('display-area').addEventListener('click', (e) => {
@@ -591,7 +581,6 @@
             saveState();
             let currentMath = getMathString(expression);
             
-            // Jika layar masih 0, timpa langsung. Jika tidak, tambah operator +
             if (expression === "0" || expression === "") {
                 expression = harga + "@" + nama + "@";
             } else {
@@ -672,14 +661,12 @@
             let db = getDb();
             
             if (index === '') {
-                // Mode Tambah Baru
                 if (db.some(b => b.nama.toLowerCase() === name.toLowerCase())) {
                     await showAlert("Barang dengan nama ini sudah ada di database!");
                     return;
                 }
-                db.unshift({ nama: name, harga: price }); // Masukkan ke urutan paling atas
+                db.unshift({ nama: name, harga: price }); 
             } else {
-                // Mode Edit
                 db[index] = { nama: name, harga: price };
             }
             
@@ -698,8 +685,6 @@
             document.getElementById('manage-btn-save').innerText = '💾 Simpan Perubahan';
             document.getElementById('manage-btn-save').style.backgroundColor = '#2563eb';
             document.getElementById('manage-btn-cancel').style.display = 'block';
-            
-            // Scroll ke atas agar form edit terlihat
             document.querySelector('#manage-modal .modal-body').scrollTop = 0;
         }
 
@@ -718,7 +703,7 @@
         // ==========================================
         function exportDatabase() {
             let db = getDb();
-            let text = "Nama Barang,Harga\n"; // Header CSV
+            let text = "Nama Barang,Harga\n"; 
             text += db.map(item => `"${item.nama}",${item.harga}`).join('\n');
             
             let blob = new Blob([text], { type: 'text/csv' });
@@ -743,7 +728,6 @@
 
             let file = fileInput.files[0];
             
-            // Pengaman tambahan: Pastikan nama file berakhiran .csv
             if (!file.name.toLowerCase().endsWith('.csv')) {
                 await showAlert("Format tidak didukung! Harap pastikan file yang dipilih adalah file CSV.");
                 return;
@@ -760,18 +744,13 @@
                 let errors = 0;
 
                 for (let line of lines) {
-                    // Abaikan baris header 
                     if(line.toLowerCase().includes('nama barang') || line.trim() === '') continue;
 
-                    // Pisahkan berdasarkan koma (,) atau tab (\t)
                     let parts = line.includes('\t') ? line.split('\t') : line.split(','); 
                     
                     if (parts.length >= 2) {
-                        // Ambil harga dari bagian terakhir, buang sisa karakter selain angka
                         let rawPrice = parts.pop().replace(/[^0-9]/g, ''); 
                         let price = parseInt(rawPrice);
-                        
-                        // Sisanya adalah nama (jika nama mengandung koma, gabungkan kembali)
                         let name = parts.join(',').replace(/"/g, '').trim(); 
                         
                         if (name && !isNaN(price)) {
@@ -786,9 +765,8 @@
 
                 if (newItems.length > 0) {
                     let db = getDb();
-                    let mergedDb = [...newItems, ...db]; // Gabungkan data baru di atas data lama
+                    let mergedDb = [...newItems, ...db]; 
                     
-                    // Hapus duplikat (jika nama barang sama, gunakan harga terbaru dari data import)
                     let uniqueDb = [];
                     let seen = new Set();
                     for(let item of mergedDb) {
@@ -800,8 +778,8 @@
                     }
 
                     saveDb(uniqueDb);
-                    fileInput.value = ''; // Kosongkan file explorer
-                    showImportArea(); // Sembunyikan area import
+                    fileInput.value = ''; 
+                    showImportArea(); 
                     renderManageList();
                     await showAlert(`Berhasil mengimpor ${newItems.length} barang!\n(${errors} baris dilewati karena format salah).`);
                 } else {
@@ -829,7 +807,7 @@
 
             document.getElementById('edit-input').value = mathOnly;
             document.getElementById('edit-item-label').innerText = itemName ? `Barang: ${itemName}` : '';
-            document.getElementById('edit-modal').dataset.itemName = itemName; // Simpan nama sementara
+            document.getElementById('edit-modal').dataset.itemName = itemName; 
             
             document.getElementById('edit-modal').style.display = 'flex';
             setTimeout(() => document.getElementById('edit-input').focus(), 100);
@@ -846,7 +824,7 @@
             if(!newVal) { deleteEditItem(); return; }
             
             let savedName = document.getElementById('edit-modal').dataset.itemName;
-            if (savedName) newVal = newVal + "@" + savedName + "@"; // Kembalikan tag nama ke string
+            if (savedName) newVal = newVal + "@" + savedName + "@"; 
             
             let parts = expression.split(/([+\-])/);
             parts[currentEditIndex] = newVal;
@@ -966,14 +944,11 @@
         function appendNum(num) {
             if(!isPaymentMode) { 
                 saveState(); 
-                
-                // Cek apakah kursor sedang berada tepat di depan tag nama barang
                 let match = expression.match(/(@[^@]*@)$/);
                 if (match) {
-                    let tag = match[1]; // Ekstrak tag nama barang (contoh: @Indomie@)
-                    let withoutTag = expression.slice(0, -tag.length); // Ekstrak angkanya
+                    let tag = match[1]; 
+                    let withoutTag = expression.slice(0, -tag.length); 
                     
-                    // Timpa angka 0 dengan angka baru agar tidak menjadi "05"
                     if (withoutTag === "0" && num !== ".") {
                         withoutTag = num;
                     } else if (withoutTag.length >= 2 && ['+','-','*','/'].includes(withoutTag.slice(-2, -1)) && withoutTag.slice(-1) === "0" && num !== ".") {
@@ -982,7 +957,6 @@
                         withoutTag += num;
                     }
                     
-                    // Pasang kembali tag namanya di ujung
                     expression = withoutTag + tag;
                 } else {
                     if(expression==="0" && num!==".") expression=""; 
@@ -1000,13 +974,11 @@
             if(isPaymentMode || expression==="") return;
             saveState();
             
-            // Jika ada tag barang di ujung, langsung tambah operator baru di belakangnya
             if (expression.match(/(@[^@]*@)$/)) {
                 expression += op;
             } else {
                 let mathExpr = getMathString(expression);
                 if(['+','-','*','/'].includes(mathExpr.slice(-1))) {
-                     // Ganti operator lama
                      expression = expression.slice(0,-1) + op;
                 } else {
                      expression += op;
@@ -1018,22 +990,17 @@
         function backspace() {
             if(!isPaymentMode) { 
                 saveState(); 
-                
-                // Cek apakah diakhiri dengan tag nama barang
                 let match = expression.match(/(@[^@]*@)$/);
                 if (match) {
                     let tag = match[1];
                     let withoutTag = expression.slice(0, -tag.length);
                     
-                    // Hapus 1 karakter digit terakhir (angka dari harga)
                     withoutTag = withoutTag.slice(0, -1);
                     
-                    // Jika dihapus sampai habis angkanya, kembalikan ke 0 (menjaga format)
                     if(withoutTag === "" || ['+','-','*','/'].includes(withoutTag.slice(-1))) {
                         withoutTag += "0"; 
                     }
                     
-                    // Gabungkan angka yang sudah dihapus dengan nama barang yang utuh
                     expression = withoutTag + tag; 
                 } else {
                     expression = expression.slice(0,-1); 
@@ -1126,7 +1093,7 @@
                 timeStr: new Date().toLocaleTimeString('id-ID'), 
                 total: total, pay: pay, change: change, expression: expr, txNumber: txNum
             });
-            // PERBAIKAN: Naikkan kapasitas batas riwayat transaksi dari 50 ke 2000 agar muat 1 bulan
+            // Kapasitas riwayat diset 2000 untuk rekapan 1 bulan
             if(history.length > 2000) history.pop();
             localStorage.setItem('tx_history', JSON.stringify(history));
         }
@@ -1160,7 +1127,7 @@
         function closeHistory() { document.getElementById('history-modal').style.display = 'none'; }
 
         // ==========================================
-        // FITUR EXPORT / DOWNLOAD RIWAYAT (CSV)
+        // EXPORT / DOWNLOAD RIWAYAT (CSV)
         // ==========================================
         function parseExpressionToReadable(expr) {
             if(!expr) return "-";
@@ -1183,7 +1150,6 @@
                     try { price = parseInt(eval(mathOnly)); } catch(e) {}
                 }
                 
-                // Tambahkan tanda minus jika item tersebut dikurangi (Retur/Koreksi)
                 let sign = (i > 0 && parts[i-1] === '-') ? '(Minus) ' : '';
                 items.push(`${sign}${qty}x ${itemName} (Rp${price})`);
             }
@@ -1197,14 +1163,12 @@
                 return;
             }
 
-            // Membuat Header CSV
             let csvContent = "Tanggal,Waktu,No Transaksi,Total Belanja,Dibayar,Kembali/Hutang,Status,Rincian Barang\n";
             
             history.forEach(row => {
                 let status = row.change >= 0 ? "LUNAS" : "HUTANG";
                 let rincian = parseExpressionToReadable(row.expression);
                 
-                // Escape (bungkus dengan kutip) agar tanda koma di dalam teks tidak merusak format Excel
                 let tgl = `"${row.dateStr || ''}"`;
                 let wkt = `"${row.timeStr || ''}"`;
                 let noTx = `"${row.txNumber || ''}"`;
@@ -1217,7 +1181,6 @@
                 csvContent += `${tgl},${wkt},${noTx},${tot},${dibyr},${kmbli},${stat},${rinc}\n`;
             });
 
-            // Melakukan Trigger Download
             let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             let url = URL.createObjectURL(blob);
             let a = document.createElement('a');
@@ -1242,7 +1205,7 @@
             } catch (e) { await showAlert("Gagal Konek: " + e); onDisconnected(); }
         }
 
-        function onDisconnected() { btnBt.innerHTML = '🖨️<br>Connect'; btnBt.style.backgroundColor = "#475569"; printerCharacteristic = null; }
+        function onDisconnected() { btnBt.innerHTML = '🖨️️<br>Connect'; btnBt.style.backgroundColor = "#475569"; printerCharacteristic = null; }
 
         function strToBytes(str) {
             const bytes = [];
@@ -1274,6 +1237,14 @@
 
                 let itemsOutput = "";
                 let itemCount = 0;
+                const MAX_CHAR = 32; // Batas standar karakter printer 58mm
+                
+                // Fungsi cerdas untuk membuat teks rata kiri dan rata kanan secara presisi
+                const formatLine = (leftTxt, rightTxt) => {
+                    let spaces = MAX_CHAR - (leftTxt.length + rightTxt.length);
+                    if (spaces < 0) spaces = 0;
+                    return leftTxt + " ".repeat(spaces) + rightTxt + "\n";
+                };
                 
                 printItems.forEach((itemObj, index) => {
                     let cleanItemWithTags = itemObj.val.trim();
@@ -1297,17 +1268,37 @@
                     let sign = (itemObj.op === '-') ? '- ' : ''; 
                     let lineTotal = qty * price;
                     
-                    // Format struk baru: Nama Barang di baris atas
-                    itemsOutput += `${itemName}\n`;
-                    itemsOutput += `  ${qty}x${sign}Rp${price.toLocaleString('id-ID')}`;
-                    if(qty > 1) itemsOutput += ` = Rp${lineTotal.toLocaleString('id-ID')}`;
-                    itemsOutput += `\n`;
+                    let priceStr = price.toLocaleString('id-ID');
+                    let totalStr = lineTotal.toLocaleString('id-ID');
+                    
+                    // Susun teks rincian harga/kuantitas
+                    let detailStr = "";
+                    if (qty > 1) {
+                        detailStr = `${qty}x ${sign}${priceStr} = ${totalStr}`;
+                    } else {
+                        detailStr = `${sign}${priceStr}`;
+                    }
+                    
+                    // Cek apakah jika digabung (nama + spasi + detail) muat 1 baris
+                    if (itemName.length + detailStr.length + 1 <= MAX_CHAR) {
+                        // Jika muat, cetak satu baris (Nama di kiri, Rincian di kanan)
+                        itemsOutput += formatLine(itemName, detailStr);
+                    } else {
+                        // Jika panjangnya melebihi batas, jadikan 2 baris
+                        itemsOutput += `${itemName}\n`;
+                        // Rincian harga di baris kedua, didorong penuh ke sebelah kanan
+                        itemsOutput += formatLine("", detailStr);
+                    }
                 });
 
-                let summaryLine = `Jml Jenis Barang ${itemCount}\n`;
-                let changeText = "";
-                if (change >= 0) changeText = `KEMBALI : Rp ${change.toLocaleString('id-ID')}\n`;
-                else changeText = `HUTANG  : Rp ${Math.abs(change).toLocaleString('id-ID')}\n`;
+                // Format baris ringkasan dan angka pembayaran (Rata Kanan)
+                let summaryLine = formatLine("Jml Jenis Barang", `${itemCount}`);
+                let totalLine = formatLine("TOTAL", `Rp ${total.toLocaleString('id-ID')}`);
+                let payLine = formatLine("BAYAR", `Rp ${pay.toLocaleString('id-ID')}`);
+                
+                let changeLabel = change >= 0 ? "KEMBALI" : "HUTANG";
+                let changeValue = `Rp ${Math.abs(change).toLocaleString('id-ID')}`;
+                let changeLine = formatLine(changeLabel, changeValue);
 
                 let reprintMarker = isReprint ? (center + normalFont + "(CETAK ULANG)\n" + left) : "";
                 let txLine = txNumber ? `No. Transaksi : ${txNumber}\n` : "";
@@ -1324,13 +1315,14 @@
                     `Tgl : ${dateStr} ${timeStr}\n` +
                     txLine +
                     "--------------------------------\n" +
-                    itemsOutput + "--------------------------------\n" + 
+                    itemsOutput + 
+                    "--------------------------------\n" + 
                     summaryLine +
                     boldOn + 
-                    `TOTAL   : Rp ${total.toLocaleString('id-ID')}\n` +
+                    totalLine +
                     boldOff +
-                    `BAYAR   : Rp ${pay.toLocaleString('id-ID')}\n` +
-                    changeText +
+                    payLine +
+                    changeLine +
                     "--------------------------------\n" +
                     center + "Pesan Barang W.A: 0856-4883-0413\n" +
                     "Terima Kasih, Semoga Berkah\n\n\n";
